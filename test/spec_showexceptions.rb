@@ -35,7 +35,7 @@ describe Rack::ShowExceptions do
     ))
 
     lambda{
-      res = req.get( "/", "HTTP_ACCECPT" => "*/*")
+      res = req.get( "/", "HTTP_ACCEPT" => "*/*")
     }.should.not.raise
 
     res.should.be.a.server_error
