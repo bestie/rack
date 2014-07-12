@@ -300,9 +300,23 @@ describe Rack::Utils do
     # Higher quality matches are preferred
     Rack::Utils.best_q_match("text/*;q=0.5,text/plain;q=1.0", %w[text/plain text/html]).should.equal "text/plain"
 
+    Rack::Utils.best_q_match("audio/*; q=0.2, audio/basic", %w[text/html audio/x-aac, audio/basic])
+      .should.equal "audio/basic"
+
+    Rack::Utils.best_q_match("text/html;q=0.8,text/plain;q=0.9", %w[text/plain text/html])
+      .should.equal "text/plain"
+
+    Rack::Utils.best_q_match(
+      "text/plain; q=0.5, text/html, text/x-dvi; q=0.8, text/x-c",
+      %w(text/plain text/x-dvi text/x-c)
+    ).should.equal "text/x-c"
+
     # All else equal, the available mimes are preferred in order
     Rack::Utils.best_q_match("text/*", %w[text/html text/plain]).should.equal "text/html"
     Rack::Utils.best_q_match("text/plain,text/html", %w[text/html text/plain]).should.equal "text/html"
+
+    # When there are no matches, returns nil
+    Rack::Utils.best_q_match("text/*", %w[audio/basic]).should.equal nil
   end
 
   should "escape html entities [&><'\"/]" do

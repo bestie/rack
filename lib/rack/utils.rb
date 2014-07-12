@@ -182,15 +182,25 @@ module Rack
     module_function :q_values
 
     def best_q_match(q_value_header, available_mimes)
-      values = q_values(q_value_header)
+      requested_mimes = q_values(q_value_header)
 
-      values.map do |req_mime, quality|
-        match = available_mimes.first { |am| Rack::Mime.match?(am, req_mime) }
-        next unless match
-        [match, quality]
-      end.compact.sort_by do |match, quality|
-        (match.split('/', 2).count('*') * -10) + quality
-      end.last.first
+      requested_mimes
+        .select { |(requested_mime, _quality)|
+          available_mimes.any? { |am| Rack::Mime.match?(am, requested_mime) }
+        }
+        .map { |(requested_mime, quality)|
+          if requested_mime.end_with?("/*")
+            [
+              available_mimes.find {|am| Rack::Mime.match?(am, requested_mime) },
+              quality
+            ]
+          else
+            [requested_mime, quality]
+          end
+        }
+        .sort_by { |(_requested_mime, quality)| quality }
+        .map { |(requested_mime, _quality)| requested_mime }
+        .last
     end
     module_function :best_q_match
 
