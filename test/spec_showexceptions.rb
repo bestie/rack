@@ -24,42 +24,7 @@ describe Rack::ShowExceptions do
 
     res.should =~ /RuntimeError/
     res.should =~ /ShowExceptions/
-  end
-
-  it "responds with HTML only to requests accepting HTML" do
-    res = nil
-
-    req = Rack::MockRequest.new(
-      show_exceptions(
-        lambda{|env| raise RuntimeError, "It was never supposed to work" }
-    ))
-
-    [
-      # Serve text/html when the client accepts text/html
-      ["text/html", ["/", {"HTTP_ACCEPT" => "text/html"}]],
-      ["text/html", ["/", {"HTTP_ACCEPT" => "*/*"}]],
-      # Serve text/plain when the client does not accept text/html
-      ["text/plain", ["/"]],
-      ["text/plain", ["/", {"HTTP_ACCEPT" => "application/json"}]]
-    ].each do |exmime, rargs|
-      lambda{
-        res = req.get(*rargs)
-      }.should.not.raise
-
-      res.should.be.a.server_error
-      res.status.should.equal 500
-
-      res.content_type.should.equal exmime
-
-      res.body.should.include "RuntimeError"
-      res.body.should.include "It was never supposed to work"
-
-      if exmime == "text/html"
-        res.body.should.include '</html>'
-      else
-        res.body.should.not.include '</html>'
-      end
-    end
+    res.body.should.include '</html>'
   end
 
   it "handles exceptions without a backtrace" do
@@ -81,5 +46,55 @@ describe Rack::ShowExceptions do
     res.should =~ /RuntimeError/
     res.should =~ /ShowExceptions/
     res.should =~ /unknown location/
+  end
+
+  def request
+    Rack::MockRequest.new(
+      show_exceptions(
+        lambda{|env| raise RuntimeError, "It was never supposed to work" }
+      )
+    )
+  end
+
+  it "responds with plain text requests not preferring HTML" do
+    res = nil
+
+    lambda{
+      res = request.get("/", "HTTP_ACCEPT" => "text/plain")
+    }.should.not.raise
+
+    res.should.be.a.server_error
+    res.status.should.equal 500
+
+    res.content_type.should.equal "text/plain"
+
+    res.body.should.include "RuntimeError"
+    res.body.should.include "It was never supposed to work"
+
+    res.body.should.not.include '</html>'
+  end
+
+  it "responds with plain text to ACCEPT HEADER */*" do
+    response = request.get("/", "HTTP_ACCEPT" => "text/plain")
+
+    response.content_type.should.equal "text/plain"
+  end
+
+  it "responds with plain text when there is no accept header" do
+    response = request.get("/", "HTTP_ACCEPT" => "")
+
+    response.content_type.should.equal "text/plain"
+  end
+
+  it "responds with plain text when there is no matching mime type" do
+    response = request.get("/", "HTTP_ACCEPT" => "application/json")
+
+    response.content_type.should.equal "text/plain"
+  end
+
+  it "responds with HTML to a typical browser get document header" do
+    response = request.get("/", "HTTP_ACCEPT" => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+
+    response.content_type.should.equal "text/html"
   end
 end
